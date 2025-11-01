@@ -811,6 +811,136 @@ def get_delta_server_info():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/delta/ip-monitor')
+def monitor_ip_changes():
+    """Monitor IP changes and provide whitelist instructions"""
+    try:
+        # Get current IPs
+        try:
+            ip_response = requests.get('https://httpbin.org/ip', timeout=5)
+            current_ip = ip_response.json().get('origin', 'Unknown')
+        except:
+            current_ip = 'Unable to determine'
+
+        # Get headers info
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        real_ip = request.environ.get('HTTP_X_REAL_IP', 'Unknown')
+
+        # Previous known IPs that were whitelisted
+        known_ips = [
+            '162.220.232.43',
+            '152.59.33.106',
+            '162.220.232.102'
+        ]
+
+        ip_status = {
+            'current_public_ip': current_ip,
+            'client_ip': client_ip,
+            'real_ip': real_ip,
+            'known_whitelisted_ips': known_ips,
+            'ip_changed': current_ip not in known_ips,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        if ip_status['ip_changed']:
+            ip_status['action_required'] = {
+                'message': f'⚠️ New IP detected: {current_ip}',
+                'instructions': [
+                    '1. Go to Delta Exchange → API Management',
+                    '2. Find your API key: FcnplGp0tyMHXvtXzYWNlA9n1YezjU',
+                    '3. Edit IP Whitelist',
+                    f'4. Add this new IP: {current_ip}',
+                    '5. Save changes and wait 2-3 minutes'
+                ],
+                'alternative': f'Or add IP range: {current_ip.rsplit(".", 1)[0]}.0/24 to allow entire range'
+            }
+        else:
+            ip_status['status'] = f'✅ Current IP {current_ip} should be whitelisted'
+
+        return jsonify(ip_status)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/test-and-guide')
+def test_and_provide_guidance():
+    """Test authentication and provide specific guidance based on results"""
+    try:
+        client = DeltaExchangeClient()
+
+        # Test authentication
+        wallet_result = client.get_wallet_balances()
+
+        guidance = {
+            'timestamp': datetime.now().isoformat(),
+            'test_result': wallet_result,
+            'diagnosis': '',
+            'instructions': []
+        }
+
+        if wallet_result.get('success'):
+            guidance['diagnosis'] = '✅ WORKING PERFECTLY!'
+            guidance['instructions'] = [
+                '🎉 Your Delta Exchange API connection is working!',
+                '💰 You can now access wallet balances',
+                '📊 All trading endpoints should be functional',
+                '🤖 Your automated trading bot is ready!'
+            ]
+        elif wallet_result.get('status_code') == 401:
+            error_data = wallet_result.get('error', {})
+            if 'invalid_api_key' in str(error_data):
+                # Get current IP for instructions
+                try:
+                    ip_response = requests.get('https://httpbin.org/ip', timeout=5)
+                    current_ip = ip_response.json().get('origin', 'Unknown')
+                except:
+                    current_ip = 'Unable to determine'
+
+                guidance['diagnosis'] = '🚫 IP WHITELIST ISSUE'
+                guidance['current_ip'] = current_ip
+                guidance['instructions'] = [
+                    f'📍 Your server IP is: {current_ip}',
+                    '🔧 This IP needs to be whitelisted in Delta Exchange',
+                    '',
+                    '📝 Steps to fix:',
+                    '1. Go to https://app.india.delta.exchange',
+                    '2. Navigate to API Management',
+                    '3. Find your API key: FcnplGp0tyMHXvtXzYWNlA9n1YezjU',
+                    '4. Click "Edit" or "Manage"',
+                    '5. Add to IP Whitelist: ' + current_ip,
+                    '6. Save changes',
+                    '7. Wait 2-3 minutes for changes to take effect',
+                    '',
+                    '🔄 Then test again at: /api/delta/test-and-guide'
+                ]
+            else:
+                guidance['diagnosis'] = '🔑 CREDENTIAL ISSUE'
+                guidance['instructions'] = [
+                    '❌ API credentials are invalid or expired',
+                    '🔄 Try regenerating your API key in Delta Exchange',
+                    '⚙️ Update Railway environment variables with new credentials'
+                ]
+        else:
+            guidance['diagnosis'] = f'❓ UNKNOWN ISSUE (Status: {wallet_result.get("status_code", "unknown")})'
+            guidance['instructions'] = [
+                '🔍 Unexpected error occurred',
+                '📋 Check the test_result for more details',
+                '💬 Contact Delta Exchange support if needed'
+            ]
+
+        return jsonify(guidance)
+
+    except Exception as e:
+        return jsonify({
+            'diagnosis': '💥 SYSTEM ERROR',
+            'error': str(e),
+            'instructions': [
+                '⚠️ Bot system error occurred',
+                '🔧 Check server logs for details',
+                '🔄 Try redeploying if needed'
+            ]
+        }), 500
+
 if __name__ == '__main__':
     # Get port from environment (for cloud deployment)
     port = int(os.environ.get('PORT', 8000))
