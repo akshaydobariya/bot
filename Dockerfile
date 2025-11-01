@@ -39,12 +39,16 @@ RUN groupadd -r trading && useradd -r -g trading trading
 RUN chown -R trading:trading /app
 USER trading
 
+# Set web mode for cloud deployment
+ENV WEB_MODE=true
+ENV PORT=8000
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/metrics', timeout=5)" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=5)" || exit 1
 
-# Expose metrics port
+# Expose port
 EXPOSE 8000
 
-# Run the bot
+# Run the bot in web mode
 CMD ["python", "run.py"]
