@@ -17,9 +17,11 @@ try:
     from config import settings
     from src.monitoring.metrics import trading_metrics, health_checker
     from database.manager import db_manager
+    from src.delta_client import DeltaExchangeClient
 except ImportError as e:
     print(f"Import error: {e}")
     bot = None
+    DeltaExchangeClient = None
 
 app = Flask(__name__)
 
@@ -682,6 +684,130 @@ def debug_auth():
 
         return jsonify(debug_info)
 
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# NEW OFFICIAL DELTA EXCHANGE API ENDPOINTS
+
+@app.route('/api/delta/test-official')
+def test_official_delta():
+    """Test Delta Exchange using official client implementation"""
+    try:
+        if not DeltaExchangeClient:
+            return jsonify({
+                'error': 'DeltaExchangeClient not available',
+                'message': 'Import failed'
+            }), 500
+
+        client = DeltaExchangeClient()
+        result = client.test_connection()
+
+        return jsonify({
+            'status': 'success',
+            'implementation': 'Official Delta Exchange India Client',
+            'test_results': result,
+            'server_info': client.get_server_info()
+        })
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'message': 'Failed to initialize Delta Exchange client'
+        }), 500
+
+@app.route('/api/delta/products')
+def get_delta_products():
+    """Get all Delta Exchange products using official client"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_products()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/products/<symbol>')
+def get_delta_product(symbol):
+    """Get specific Delta Exchange product"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_product(symbol)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/ticker/<symbol>')
+def get_delta_ticker(symbol):
+    """Get real-time ticker for a symbol"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_ticker(symbol)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/wallet')
+def get_delta_wallet():
+    """Get wallet balances using official client"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_wallet_balances()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/positions')
+def get_delta_positions():
+    """Get current positions"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_positions()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/orders')
+def get_delta_orders():
+    """Get order history"""
+    try:
+        client = DeltaExchangeClient()
+        limit = request.args.get('limit', 50, type=int)
+        result = client.get_orders(limit=limit)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/active-orders')
+def get_delta_active_orders():
+    """Get active orders"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_active_orders()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/candles/<symbol>')
+def get_delta_candles(symbol):
+    """Get historical candlestick data"""
+    try:
+        client = DeltaExchangeClient()
+        resolution = request.args.get('resolution', '1h')
+        start = request.args.get('start')
+        end = request.args.get('end')
+
+        result = client.get_candles(symbol, resolution, start, end)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/delta/server-info')
+def get_delta_server_info():
+    """Get server and connection information"""
+    try:
+        client = DeltaExchangeClient()
+        result = client.get_server_info()
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
