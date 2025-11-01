@@ -401,13 +401,15 @@ def test_delta_connection():
 
         # Test 2: Authentication test (wallet endpoint)
         try:
-            # Create signed request to wallet endpoint
-            timestamp = str(int(time.time() * 1000))
+            # Create signed request to wallet endpoint (Fixed: timestamp in seconds)
+            timestamp = str(int(time.time()))  # Seconds only, not milliseconds!
             method = 'GET'
             path = '/v2/wallet/balances'
+            query_string = ''  # No query parameters
+            body = ''  # No request body for GET
 
-            # Create signature
-            payload = method + timestamp + path
+            # Create signature (method + timestamp + path + query_string + body)
+            payload = method + timestamp + path + query_string + body
             signature = hmac.new(
                 api_secret.encode('utf-8'),
                 payload.encode('utf-8'),
@@ -418,6 +420,7 @@ def test_delta_connection():
                 'api-key': api_key,
                 'timestamp': timestamp,
                 'signature': signature,
+                'User-Agent': 'DeltaTradingBot/1.0',
                 'Content-Type': 'application/json'
             }
 
@@ -521,13 +524,15 @@ def get_balance():
                 'message': 'Set DELTA_API_KEY and DELTA_API_SECRET in Railway environment variables'
             }), 400
 
-        # Create signed request
-        timestamp = str(int(time.time() * 1000))
+        # Create signed request (timestamp in SECONDS, not milliseconds!)
+        timestamp = str(int(time.time()))  # Seconds only, as per Delta Exchange docs
         method = 'GET'
         path = '/v2/wallet/balances'
+        query_string = ''  # No query parameters
+        body = ''  # No request body for GET
 
-        # Create signature
-        payload = method + timestamp + path
+        # Create signature (method + timestamp + path + query_string + body)
+        payload = method + timestamp + path + query_string + body
         signature = hmac.new(
             api_secret.encode('utf-8'),
             payload.encode('utf-8'),
@@ -538,6 +543,7 @@ def get_balance():
             'api-key': api_key,
             'timestamp': timestamp,
             'signature': signature,
+            'User-Agent': 'DeltaTradingBot/1.0',
             'Content-Type': 'application/json'
         }
 
@@ -597,13 +603,13 @@ def debug_auth():
             debug_info['error'] = 'Missing credentials'
             return jsonify(debug_info)
 
-        # Test different API endpoints
-        current_time = int(time.time() * 1000)
+        # Test different API endpoints (Fixed: use seconds for timestamp)
+        current_time = int(time.time())  # Seconds, not milliseconds
         timestamp = str(current_time)
 
         debug_info['step2_timing'] = {
             'current_timestamp': timestamp,
-            'current_time_readable': datetime.fromtimestamp(current_time/1000).isoformat()
+            'current_time_readable': datetime.fromtimestamp(current_time).isoformat()
         }
 
         # Test 1: Try a simple public endpoint first
@@ -620,7 +626,9 @@ def debug_auth():
         # Test 2: Try authenticated endpoint with detailed signature debug
         method = 'GET'
         path = '/v2/wallet/balances'
-        payload = method + timestamp + path
+        query_string = ''  # No query parameters
+        body = ''  # No request body for GET
+        payload = method + timestamp + path + query_string + body
 
         debug_info['step4_signature_creation'] = {
             'method': method,
@@ -646,6 +654,7 @@ def debug_auth():
             'api-key': api_key,
             'timestamp': timestamp,
             'signature': signature,
+            'User-Agent': 'DeltaTradingBot/1.0',
             'Content-Type': 'application/json'
         }
 
