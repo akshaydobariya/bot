@@ -352,6 +352,223 @@ def check_credentials():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/test-delta-connection')
+def test_delta_connection():
+    """Comprehensive Delta Exchange API connection test"""
+    try:
+        import hashlib
+        import hmac
+        import time
+        import json
+
+        # Get API credentials
+        api_key = os.environ.get('DELTA_API_KEY')
+        api_secret = os.environ.get('DELTA_API_SECRET')
+
+        if not api_key or not api_secret:
+            return jsonify({
+                'status': 'error',
+                'issue': 'missing_credentials',
+                'message': 'API credentials not found in environment variables',
+                'api_key_present': bool(api_key),
+                'api_secret_present': bool(api_secret),
+                'fix': 'Add DELTA_API_KEY and DELTA_API_SECRET to Railway environment variables'
+            }), 400
+
+        # Test 1: Basic connectivity (no auth required)
+        test_results = {
+            'timestamp': datetime.now().isoformat(),
+            'api_key_length': len(api_key) if api_key else 0,
+            'api_secret_length': len(api_secret) if api_secret else 0,
+            'tests': {}
+        }
+
+        # Test basic connectivity to Delta Exchange
+        try:
+            response = requests.get('https://api.india.delta.exchange/v2/products', timeout=10)
+            test_results['tests']['basic_connectivity'] = {
+                'status': 'success' if response.status_code == 200 else 'failed',
+                'status_code': response.status_code,
+                'response_size': len(response.text),
+                'message': 'Can reach Delta Exchange API'
+            }
+        except Exception as e:
+            test_results['tests']['basic_connectivity'] = {
+                'status': 'failed',
+                'error': str(e),
+                'message': 'Cannot reach Delta Exchange API - network issue'
+            }
+
+        # Test 2: Authentication test (wallet endpoint)
+        try:
+            # Create signed request to wallet endpoint
+            timestamp = str(int(time.time() * 1000))
+            method = 'GET'
+            path = '/v2/wallet/balances'
+
+            # Create signature
+            payload = method + timestamp + path
+            signature = hmac.new(
+                api_secret.encode('utf-8'),
+                payload.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+
+            headers = {
+                'api-key': api_key,
+                'timestamp': timestamp,
+                'signature': signature,
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.get(
+                f'https://api.india.delta.exchange{path}',
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                test_results['tests']['authentication'] = {
+                    'status': 'success',
+                    'status_code': response.status_code,
+                    'message': 'API credentials are valid and working',
+                    'wallet_data': response.json()
+                }
+            elif response.status_code == 403:
+                test_results['tests']['authentication'] = {
+                    'status': 'ip_blocked',
+                    'status_code': response.status_code,
+                    'error': response.text,
+                    'message': 'IP address not whitelisted in Delta Exchange',
+                    'fix': 'Add your server IP to Delta Exchange API whitelist'
+                }
+            elif response.status_code == 401:
+                test_results['tests']['authentication'] = {
+                    'status': 'auth_failed',
+                    'status_code': response.status_code,
+                    'error': response.text,
+                    'message': 'Invalid API credentials or signature',
+                    'fix': 'Check API key and secret are correct'
+                }
+            else:
+                test_results['tests']['authentication'] = {
+                    'status': 'unknown_error',
+                    'status_code': response.status_code,
+                    'error': response.text,
+                    'message': f'Unexpected response: {response.status_code}'
+                }
+
+        except Exception as e:
+            test_results['tests']['authentication'] = {
+                'status': 'failed',
+                'error': str(e),
+                'message': 'Failed to create authenticated request'
+            }
+
+        # Test 3: Public endpoint test (should always work)
+        try:
+            response = requests.get('https://api.india.delta.exchange/v2/products/BTCUSD', timeout=10)
+            test_results['tests']['public_endpoint'] = {
+                'status': 'success' if response.status_code == 200 else 'failed',
+                'status_code': response.status_code,
+                'message': 'Public endpoint accessibility'
+            }
+        except Exception as e:
+            test_results['tests']['public_endpoint'] = {
+                'status': 'failed',
+                'error': str(e)
+            }
+
+        # Determine overall diagnosis
+        auth_test = test_results['tests'].get('authentication', {})
+        if auth_test.get('status') == 'success':
+            test_results['diagnosis'] = 'connection_working'
+            test_results['message'] = '✅ All tests passed! API connection is working properly.'
+        elif auth_test.get('status') == 'ip_blocked':
+            test_results['diagnosis'] = 'ip_whitelist_issue'
+            test_results['message'] = '🚫 IP address blocked. Add your server IP to Delta Exchange whitelist.'
+        elif auth_test.get('status') == 'auth_failed':
+            test_results['diagnosis'] = 'credential_issue'
+            test_results['message'] = '🔑 API credentials invalid. Check your API key and secret.'
+        else:
+            test_results['diagnosis'] = 'unknown_issue'
+            test_results['message'] = '❓ Connection issue detected. Check logs for details.'
+
+        return jsonify(test_results)
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'message': 'Failed to run connection tests'
+        }), 500
+
+@app.route('/api/balance')
+def get_balance():
+    """Get Delta Exchange wallet balance (diagnostic endpoint)"""
+    try:
+        import hashlib
+        import hmac
+        import time
+
+        # Get API credentials
+        api_key = os.environ.get('DELTA_API_KEY')
+        api_secret = os.environ.get('DELTA_API_SECRET')
+
+        if not api_key or not api_secret:
+            return jsonify({
+                'error': 'API credentials not configured',
+                'message': 'Set DELTA_API_KEY and DELTA_API_SECRET in Railway environment variables'
+            }), 400
+
+        # Create signed request
+        timestamp = str(int(time.time() * 1000))
+        method = 'GET'
+        path = '/v2/wallet/balances'
+
+        # Create signature
+        payload = method + timestamp + path
+        signature = hmac.new(
+            api_secret.encode('utf-8'),
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
+        headers = {
+            'api-key': api_key,
+            'timestamp': timestamp,
+            'signature': signature,
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.get(
+            f'https://api.india.delta.exchange{path}',
+            headers=headers,
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                'status': 'success',
+                'balances': data.get('result', []),
+                'message': 'Successfully retrieved wallet balance'
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'status_code': response.status_code,
+                'error': response.text,
+                'message': 'Failed to retrieve balance from Delta Exchange'
+            }), response.status_code
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'message': 'Failed to connect to Delta Exchange API'
+        }), 500
+
 if __name__ == '__main__':
     # Get port from environment (for cloud deployment)
     port = int(os.environ.get('PORT', 8000))
