@@ -56,7 +56,7 @@ class Trade(Base):
     commission = Column(Float, default=0.0)
 
     # Additional metadata
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
 
     # Relationships
     positions = relationship("Position", back_populates="trade")
@@ -118,7 +118,7 @@ class Position(Base):
     trade = relationship("Trade", back_populates="positions")
 
     # Additional metadata
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
 
     # Indexes
     __table_args__ = (
@@ -182,7 +182,7 @@ class StrategyPerformance(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Additional metrics
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
 
     # Indexes
     __table_args__ = (
@@ -229,7 +229,7 @@ class RiskEvent(Base):
     created_at = Column(DateTime, default=func.now())
 
     # Additional data
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
 
     # Relationships
     position = relationship("Position")
@@ -287,7 +287,7 @@ class Signal(Base):
     # Additional data
     indicators = Column(JSON)  # Store indicator values at signal time
     market_conditions = Column(JSON)
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
 
     # Indexes
     __table_args__ = (
@@ -333,7 +333,7 @@ class BalanceSnapshot(Base):
     created_at = Column(DateTime, default=func.now())
 
     # Additional data
-    metadata = Column(JSON)
+    extra_data = Column(JSON)
 
     # Indexes
     __table_args__ = (

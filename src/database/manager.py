@@ -138,7 +138,7 @@ class DatabaseManager:
                 executed_at=trade_data.get('executed_at', datetime.now()),
                 realized_pnl=trade_data.get('realized_pnl'),
                 commission=trade_data.get('commission', 0.0),
-                metadata=trade_data.get('metadata')
+                extra_data=trade_data.get('metadata')
             )
 
             session.add(trade)
@@ -231,7 +231,7 @@ class DatabaseManager:
                 status=position_data.get('status', 'open'),
                 opened_at=position_data.get('opened_at', datetime.now()),
                 trade_id=position_data.get('trade_id'),
-                metadata=position_data.get('metadata')
+                extra_data=position_data.get('metadata')
             )
 
             session.add(position)
@@ -304,7 +304,7 @@ class DatabaseManager:
                 generated_at=signal_data.get('generated_at', datetime.now()),
                 indicators=signal_data.get('indicators'),
                 market_conditions=signal_data.get('market_conditions'),
-                metadata=signal_data.get('metadata')
+                extra_data=signal_data.get('metadata')
             )
 
             session.add(signal)
@@ -393,7 +393,7 @@ class DatabaseManager:
                 risk_level=event_data.get('risk_level'),
                 action_taken=event_data.get('action_taken'),
                 occurred_at=event_data.get('occurred_at', datetime.now()),
-                metadata=event_data.get('metadata')
+                extra_data=event_data.get('metadata')
             )
 
             session.add(event)
@@ -417,7 +417,7 @@ class DatabaseManager:
                 margin_available=balance_data.get('margin_available', 0.0),
                 margin_ratio=balance_data.get('margin_ratio', 0.0),
                 snapshot_at=balance_data.get('snapshot_at', datetime.now()),
-                metadata=balance_data.get('metadata')
+                extra_data=balance_data.get('metadata')
             )
 
             session.add(snapshot)
