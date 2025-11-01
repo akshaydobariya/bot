@@ -29,7 +29,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY src/ ./src/
 COPY run.py .
-COPY .env.example .
 
 # Create necessary directories
 RUN mkdir -p data logs
@@ -42,6 +41,16 @@ USER trading
 # Set web mode for cloud deployment
 ENV WEB_MODE=true
 ENV PORT=8000
+
+# Set required environment variables with defaults
+ENV JWT_SECRET_KEY=delta_exchange_trading_bot_jwt_secret_key_32_characters_minimum_for_security
+ENV ENCRYPTION_KEY=delta_exchange_bot_encryption_key
+ENV DATABASE_URL=sqlite:///data/trading_bot.db
+ENV ENVIRONMENT=production
+ENV DEFAULT_SYMBOL=BTCUSD
+ENV RISK_PERCENTAGE=1.0
+ENV STOP_LOSS_PERCENTAGE=2.0
+ENV TAKE_PROFIT_PERCENTAGE=3.0
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
