@@ -3,9 +3,10 @@ Simple web interface for monitoring the trading bot
 This provides a web dashboard to check if the bot is running
 """
 
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template_string, request
 import os
 import sys
+import requests
 from datetime import datetime
 
 # Add src to path for imports
@@ -295,13 +296,48 @@ def get_config():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ip-info')
+def get_ip_info():
+    """Get server IP information for Delta Exchange whitelist"""
+    try:
+        # Get public IP address
+        try:
+            response = requests.get('https://httpbin.org/ip', timeout=10)
+            public_ip = response.json().get('origin', 'Unknown')
+        except:
+            try:
+                response = requests.get('https://ipapi.co/ip/', timeout=10)
+                public_ip = response.text.strip()
+            except:
+                public_ip = 'Unable to determine'
+
+        # Get client IP (from Railway/proxy)
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+
+        ip_info = {
+            'public_ip': public_ip,
+            'client_ip': client_ip,
+            'headers': dict(request.headers),
+            'message': 'Add the public_ip to your Delta Exchange API whitelist',
+            'instructions': [
+                '1. Go to Delta Exchange → API Management',
+                '2. Find your API key settings',
+                '3. Add this IP to the whitelist:',
+                f'   {public_ip}',
+                '4. Or use 0.0.0.0/0 to allow all IPs (less secure)'
+            ]
+        }
+        return jsonify(ip_info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Get port from environment (for cloud deployment)
     port = int(os.environ.get('PORT', 8000))
 
     # Run the web interface
     print(f"🌐 Starting web dashboard on port {port}")
-    print(f"📊 Dashboard: http://localhost:{port}")
-    print(f"❤️ Health Check: http://localhost:{port}/health")
+    print(f"📊 Dashboard: http://0.0.0.0:{port}")
+    print(f"❤️ Health Check: http://0.0.0.0:{port}/health")
 
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)

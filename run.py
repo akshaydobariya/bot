@@ -80,10 +80,11 @@ if __name__ == "__main__":
 
     if web_mode:
         print("🌐 Starting in web mode for cloud deployment...")
-        print(f"📊 Dashboard will be available at: http://localhost:{port}")
+        print(f"📊 Web server starting on 0.0.0.0:{port}")
+        print(f"🔗 Dashboard will be available at your Railway app URL")
 
-        # Start web interface only
-        web_app.run(host='0.0.0.0', port=port, debug=False)
+        # Start web interface only - this binds to all interfaces for Railway
+        web_app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     else:
         try:
             # Check environment configuration
