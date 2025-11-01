@@ -559,8 +559,11 @@ def get_balance():
                 'status': 'error',
                 'status_code': response.status_code,
                 'error': response.text,
+                'error_json': response.json() if response.headers.get('content-type', '').startswith('application/json') else None,
+                'headers_sent': dict(headers),
+                'payload_used': payload,
                 'message': 'Failed to retrieve balance from Delta Exchange'
-            }), response.status_code
+            }), 200  # Return 200 so we can see the error details
 
     except Exception as e:
         return jsonify({
@@ -568,6 +571,110 @@ def get_balance():
             'error': str(e),
             'message': 'Failed to connect to Delta Exchange API'
         }), 500
+
+@app.route('/api/debug-auth')
+def debug_auth():
+    """Debug authentication process step by step"""
+    try:
+        import hashlib
+        import hmac
+        import time
+
+        # Get API credentials
+        api_key = os.environ.get('DELTA_API_KEY')
+        api_secret = os.environ.get('DELTA_API_SECRET')
+
+        debug_info = {
+            'step1_credentials': {
+                'api_key': api_key[:10] + '...' if api_key else None,
+                'api_secret': api_secret[:10] + '...' if api_secret else None,
+                'api_key_length': len(api_key) if api_key else 0,
+                'api_secret_length': len(api_secret) if api_secret else 0
+            }
+        }
+
+        if not api_key or not api_secret:
+            debug_info['error'] = 'Missing credentials'
+            return jsonify(debug_info)
+
+        # Test different API endpoints
+        current_time = int(time.time() * 1000)
+        timestamp = str(current_time)
+
+        debug_info['step2_timing'] = {
+            'current_timestamp': timestamp,
+            'current_time_readable': datetime.fromtimestamp(current_time/1000).isoformat()
+        }
+
+        # Test 1: Try a simple public endpoint first
+        try:
+            response = requests.get('https://api.india.delta.exchange/v2/products/BTCUSD', timeout=10)
+            debug_info['step3_public_test'] = {
+                'status': 'success' if response.status_code == 200 else 'failed',
+                'status_code': response.status_code,
+                'response_size': len(response.text)
+            }
+        except Exception as e:
+            debug_info['step3_public_test'] = {'error': str(e)}
+
+        # Test 2: Try authenticated endpoint with detailed signature debug
+        method = 'GET'
+        path = '/v2/wallet/balances'
+        payload = method + timestamp + path
+
+        debug_info['step4_signature_creation'] = {
+            'method': method,
+            'timestamp': timestamp,
+            'path': path,
+            'payload': payload,
+            'payload_length': len(payload)
+        }
+
+        # Create signature
+        signature = hmac.new(
+            api_secret.encode('utf-8'),
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
+        debug_info['step5_signature'] = {
+            'signature': signature[:20] + '...',
+            'signature_length': len(signature)
+        }
+
+        headers = {
+            'api-key': api_key,
+            'timestamp': timestamp,
+            'signature': signature,
+            'Content-Type': 'application/json'
+        }
+
+        try:
+            response = requests.get(
+                f'https://api.india.delta.exchange{path}',
+                headers=headers,
+                timeout=10
+            )
+
+            debug_info['step6_auth_test'] = {
+                'status_code': response.status_code,
+                'headers': dict(response.headers),
+                'response_text': response.text[:500] if response.text else None
+            }
+
+            if response.headers.get('content-type', '').startswith('application/json'):
+                try:
+                    debug_info['step6_auth_test']['response_json'] = response.json()
+                except:
+                    pass
+
+        except Exception as e:
+            debug_info['step6_auth_test'] = {'error': str(e)}
+
+        return jsonify(debug_info)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Get port from environment (for cloud deployment)
