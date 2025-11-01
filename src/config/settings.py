@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     """Application settings"""
 
     # Delta Exchange API Configuration
-    delta_api_key: str = Field(..., description="Delta Exchange API Key")
-    delta_api_secret: str = Field(..., description="Delta Exchange API Secret")
+    delta_api_key: Optional[str] = Field(default=None, description="Delta Exchange API Key")
+    delta_api_secret: Optional[str] = Field(default=None, description="Delta Exchange API Secret")
     delta_base_url: str = Field(
         default="https://api.india.delta.exchange",
         description="Delta Exchange Base URL"
@@ -249,9 +249,31 @@ class Settings(BaseSettings):
             "max_leverage": self.max_leverage
         }
 
+    def validate_api_credentials(self) -> bool:
+        """Validate that API credentials are present"""
+        return bool(self.delta_api_key and self.delta_api_secret)
 
-# Global settings instance
-settings = Settings()
+    def get_api_credentials_status(self) -> dict:
+        """Get API credentials status"""
+        return {
+            "api_key_set": bool(self.delta_api_key),
+            "api_secret_set": bool(self.delta_api_secret),
+            "both_credentials_valid": self.validate_api_credentials()
+        }
+
+
+# Global settings instance with error handling
+try:
+    settings = Settings()
+except Exception as e:
+    print(f"⚠️ Settings validation error: {e}")
+    print("💡 This might be due to missing environment variables")
+    print("🔧 The bot will start in web-only mode")
+    # Create settings with minimal configuration for web mode
+    import os
+    os.environ.setdefault('DELTA_API_KEY', 'not_set')
+    os.environ.setdefault('DELTA_API_SECRET', 'not_set')
+    settings = Settings()
 
 
 def get_settings() -> Settings:

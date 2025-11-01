@@ -331,6 +331,27 @@ def get_ip_info():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/credentials-status')
+def check_credentials():
+    """Check API credentials status"""
+    try:
+        status = settings.get_api_credentials_status()
+        status.update({
+            'message': 'API credentials configuration status',
+            'instructions': [
+                '1. Go to Railway Dashboard → Your Project',
+                '2. Click Variables tab',
+                '3. Add these environment variables:',
+                '   DELTA_API_KEY=Jx3GNFer1ryFMA3c9t1m1DIt0w6ZqV',
+                '   DELTA_API_SECRET=h2gGqrnc5nrvwQza2LgurFH1w0RSw0BtfSATKn5CKgySHqwDK5FmUpCKdbz',
+                '   WEB_MODE=true',
+                '4. Redeploy your bot'
+            ]
+        })
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Get port from environment (for cloud deployment)
     port = int(os.environ.get('PORT', 8000))
