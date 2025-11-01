@@ -21,6 +21,22 @@ from prometheus_client import (
     start_http_server, CollectorRegistry, REGISTRY
 )
 
+# Clear any existing metrics to prevent duplication errors
+def clear_prometheus_registry():
+    """Clear prometheus registry to prevent duplication errors"""
+    try:
+        collectors = list(REGISTRY._collector_to_names.keys())
+        for collector in collectors:
+            try:
+                REGISTRY.unregister(collector)
+            except Exception:
+                pass  # Ignore errors when unregistering
+    except Exception:
+        pass  # Ignore any registry access errors
+
+# Clear registry on import to prevent duplication
+clear_prometheus_registry()
+
 from src.config import settings
 from src.utils.logger import trading_logger, logger
 
@@ -37,7 +53,19 @@ class TradingMetrics:
     - Risk metrics tracking
     """
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(TradingMetrics, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        # Prevent re-initialization if already done
+        if TradingMetrics._initialized:
+            return
+        TradingMetrics._initialized = True
         # Trading Metrics
         self.trades_total = Counter(
             'trading_bot_trades_total',
@@ -369,8 +397,20 @@ class TradingMetrics:
             return {"error": str(e), "timestamp": datetime.now().isoformat()}
 
 
-# Global metrics instance
-trading_metrics = TradingMetrics()
+# Global metrics instance - with error handling
+try:
+    trading_metrics = TradingMetrics()
+    logger.info("Trading metrics initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize trading metrics: {e}")
+    # Create a dummy metrics object to prevent import errors
+    class DummyMetrics:
+        def record_trade(self, *args, **kwargs): pass
+        def record_signal(self, *args, **kwargs): pass
+        def record_api_request(self, *args, **kwargs): pass
+        def record_error(self, *args, **kwargs): pass
+        def get_metrics_summary(self): return {"error": "metrics not available"}
+    trading_metrics = DummyMetrics()
 
 
 class HealthChecker:
@@ -384,7 +424,19 @@ class HealthChecker:
     - Alert generation
     """
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(HealthChecker, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        # Prevent re-initialization if already done
+        if HealthChecker._initialized:
+            return
+        HealthChecker._initialized = True
         self.checks = {}
         self.last_check_time = None
         self.health_status = "unknown"
@@ -455,8 +507,18 @@ class HealthChecker:
         return self.health_status
 
 
-# Global health checker instance
-health_checker = HealthChecker()
+# Global health checker instance - with error handling
+try:
+    health_checker = HealthChecker()
+    logger.info("Health checker initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize health checker: {e}")
+    # Create a dummy health checker to prevent import errors
+    class DummyHealthChecker:
+        def add_check(self, *args, **kwargs): pass
+        def run_health_checks(self): return {"status": "error", "message": "health checker not available"}
+        def get_health_status(self): return "unknown"
+    health_checker = DummyHealthChecker()
 
 
 # Export main objects

@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from main import bot
     from config import settings
-    from monitoring.metrics import trading_metrics, health_checker
+    from src.monitoring.metrics import trading_metrics, health_checker
     from database.manager import db_manager
 except ImportError as e:
     print(f"Import error: {e}")
